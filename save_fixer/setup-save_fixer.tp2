@@ -1,0 +1,103 @@
+// Save Fixer
+//
+// WeiDU installer
+
+BACKUP "save_fixer/backup"
+
+AUTHOR "angel@pearlgates.net"
+VERSION 1
+
+//MODDER missing_eval none missing_resref none
+//ASK_EVERY_COMPONENT
+NO_IF_EVAL_BUG
+AUTO_EVAL_STRINGS
+//AUTO_TRA "save_fix/tra/%s"
+
+
+BEGIN ~Fix Save~
+NO_LOG_RECORD
+
+COPY "%MOD_FOLDER%/old_save/baldur.gam" "%MOD_FOLDER%/new_save/baldur.gam"
+  GET_OFFSET_ARRAY chr_array 0x0020 4 0x0024 4 0 0 0x0160
+  PHP_EACH chr_array AS chr_no => chr_offset
+  BEGIN
+    READ_LONG	(chr_offset + 0x0004) cre_offset
+    READ_ASCII	(chr_offset + 0x000d) cre_file_part (7) NULL
+
+    READ_ASCII	(cre_offset + 0x02cc) first_letter (1)
+
+    TEXT_SPRINT cre_file ~%first_letter%%cre_file_part%~
+
+    PATCH_IF FILE_EXISTS_IN_GAME "%cre_file%.cre"
+    BEGIN
+      INNER_PATCH_FILE "%cre_file%.cre"
+      BEGIN
+        READ_LONG NAME1 strref_name1
+        READ_LONG NAME2 strref_name2
+
+	FOR (SET i=0; i < 100; ++i)
+	BEGIN
+	  READ_LONG (0x00a4 + i * 4) sound
+	  TEXT_SPRINT $soundset("%i%") "%sound%"
+	END
+      END
+
+      WRITE_LONG (cre_offset + NAME1) strref_name1
+      WRITE_LONG (cre_offset + NAME2) strref_name2
+
+      FOR (SET i=0; i < 100; ++i)
+      BEGIN
+        WRITE_LONG (cre_offset + 0x00a4 + i * 4) $soundset("%i%")
+      END
+    END
+  END
+
+
+COPY "%MOD_FOLDER%/old_save/baldur.sav" "%MOD_FOLDER%/new_save/baldur.sav"
+  EDIT_SAV_FILE 9
+  BEGIN
+    READ_ASCII 0x0000 signature (4)
+
+    PATCH_IF "%signature%" STRING_EQUAL "AREA"
+    BEGIN
+      GET_OFFSET_ARRAY act_array ARE_V10_ACTORS
+      PHP_EACH act_array AS act_no => act_offset
+      BEGIN
+        READ_LONG (act_offset + 0x0028) act_flags
+	READ_ASCII (act_offset + 0x0081) cre_file_part (7) NULL
+	READ_LONG (act_offset + 0x0088) cre_offset
+
+        READ_ASCII (cre_offset + 0x0280) first_letter (1)
+
+        TEXT_SPRINT cre_file "%first_letter%%cre_file_part%"
+
+        PATCH_IF !(act_flags & BIT0)
+	BEGIN
+	  PATCH_IF FILE_EXISTS_IN_GAME "%cre_file%.cre"
+	  BEGIN
+	    INNER_PATCH_FILE "%cre_file%.cre"
+            BEGIN
+              READ_LONG NAME1 strref_name1
+              READ_LONG NAME2 strref_name2
+
+	      FOR (SET i=0; i < 100; ++i)
+	      BEGIN
+	        READ_LONG (0x00a4 + i * 4) sound
+	        TEXT_SPRINT $soundset("%i%") "%sound%"
+	      END
+            END
+
+            WRITE_LONG (cre_offset + NAME1) strref_name1
+            WRITE_LONG (cre_offset + NAME2) strref_name2
+
+            FOR (SET i=0; i < 100; ++i)
+            BEGIN
+              WRITE_LONG (cre_offset + 0x00a4 + i * 4) $soundset("%i%")
+            END
+	  END
+	END
+      END
+    END
+  END
+
+
