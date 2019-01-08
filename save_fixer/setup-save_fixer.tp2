@@ -13,158 +13,19 @@ NO_IF_EVAL_BUG
 AUTO_EVAL_STRINGS
 //AUTO_TRA "save_fix/tra/%s"
 
-
 ALWAYS
-  DEFINE_PATCH_FUNCTION fix_embedded_cre_strref
-  BEGIN
-    READ_ASCII (cre_offset + DIALOG) cre_dialog
-    READ_ASCII (cre_offset + DEATHVAR) cre_deathvar (32) NULL
-
-    // If cre has been saved multiple times, first_letter will also be *
-    // In that case we try to guess the true first letter from either
-    // the death variable or the dialog resref.
-
-    PATCH_IF "%first_letter%" STRING_EQUAL "*" AND
-             STRING_LENGTH "%cre_deathvar%" > 0
-    BEGIN
-      LAUNCH_PATCH_FUNCTION SUBSTRING
-        INT_VAR
-        start	= 0
-        length	= 1
-        STR_VAR
-        string	= "%cre_deathvar%"
-        RET
-        first_letter = substring
-      END
-    END
-
-    PATCH_IF "%first_letter%" STRING_EQUAL "*" &&
-             STRING_LENGTH "%cre_dialog%" > 0
-    BEGIN
-      LAUNCH_PATCH_FUNCTION SUBSTRING
-        INT_VAR
-        start	= 0
-        length	= 1
-        STR_VAR
-        string	= "%cre_dialog%"
-        RET
-        first_letter = substring
-      END
-    END
-
-    TEXT_SPRINT cre_resref "%first_letter%%cre_resref_part%"
-
-    PATCH_IF FILE_EXISTS_IN_GAME "%cre_resref%.cre"
-    BEGIN
-      INNER_PATCH_FILE "%cre_resref%.cre"
-      BEGIN
-        READ_LONG NAME1 strref_name1
-        READ_LONG NAME2 strref_name2
-
-        READ_ASCII DIALOG real_dialog
-        READ_ASCII DEATHVAR real_deathvar (32) NULL
-
-        FOR (SET i=0; i < 100; ++i)
-        BEGIN
-	  READ_LONG (0x00a4 + i * 4) sound
-	  TEXT_SPRINT $soundset("%i%") "%sound%"
-        END
-      END
-
-      // To be more certain, only patch if we have a match in either
-      // death variable or dialog resref.
-
-      PATCH_IF (STRING_LENGTH "%cre_deathvar%" > 0 AND
-                "%cre_deathvar%" STRING_EQUAL "%real_deathvar%")
-            OR (STRING_LENGTH "%cre_dialog%" > 0 AND
-                "%cre_deathvar%" STRING_EQUAL "%real_dialog%")
-      BEGIN
-        WRITE_LONG (cre_offset + NAME1) strref_name1
-        WRITE_LONG (cre_offset + NAME2) strref_name2
-
-        FOR (SET i=0; i < 100; ++i)
-        BEGIN
-          WRITE_LONG (cre_offset + 0x00a4 + i * 4) $soundset("%i%")
-        END
-      END
-    END
-  END
+  INCLUDE "%MOD_FOLDER%/lib/mh_functions.tph"
 END
 
-
-BEGIN ~Restore String References~
-SUBCOMPONENT ~Save Fixer~
+BEGIN "Restore String References"
+SUBCOMPONENT "Save Fixer"
 NO_LOG_RECORD
 
-COPY "%MOD_FOLDER%/old_save/baldur.gam" "%MOD_FOLDER%/new_save/baldur.gam"
-  PATCH_PRINT "Checking NPCs in baldur.gam..."
-
-  GET_OFFSET_ARRAY chr_array 0x0020 4 0x0024 4 0 0 0x0160
-  PHP_EACH chr_array AS chr_no => chr_offset
-  BEGIN
-    READ_LONG	(chr_offset + 0x0004) cre_offset
-    READ_ASCII	(chr_offset + 0x000d) cre_resref_part (7) NULL
-    READ_ASCII	(chr_offset + 0x00f7) first_letter (1)
-
-    LAUNCH_PATCH_FUNCTION fix_embedded_cre_strref
-      INT_VAR
-      cre_offset
-      STR_VAR
-      cre_resref_part
-      first_letter
-    END
-  END
-
-
-COPY "%MOD_FOLDER%/old_save/baldur.sav" "%MOD_FOLDER%/new_save/baldur.sav"
-  PATCH_PRINT "Checking saved areas and stores in baldur.sav..."
-  EDIT_SAV_FILE 9
-  BEGIN
-    READ_ASCII 0x0000 signature (4)
-    
-    PATCH_MATCH "%signature%"
-    WITH
-      "AREA"
-      BEGIN
-        PATCH_PRINT "Fixing embedded creatures in %SAV_FILE%..."
-
-        GET_OFFSET_ARRAY act_array ARE_V10_ACTORS
-        PHP_EACH act_array AS act_no => act_offset
-        BEGIN
-          READ_LONG (act_offset + 0x0028) act_flags
-          READ_ASCII (act_offset + 0x002e) first_letter (1)
-	  READ_ASCII (act_offset + 0x0081) cre_resref_part (7) NULL
-	  READ_LONG (act_offset + 0x0088) cre_offset
-
-          PATCH_IF !(act_flags & BIT0)
-	  BEGIN
-            LAUNCH_PATCH_FUNCTION fix_embedded_cre_strref
-              INT_VAR
-              cre_offset
-              STR_VAR
-              cre_resref_part
-              first_letter
-            END
-	  END
-        END
-      END
-      "STOR"
-      BEGIN
-        PATCH_PRINT "Fixing store name in %SAV_FILE%"
-
-        PATCH_IF FILE_EXISTS_IN_GAME "%SAV_FILE%"
-	BEGIN
-          INNER_PATCH_FILE "%SAV_FILE%"
-	  BEGIN
-	    READ_LONG NAME2 strref_name2
-	  END
-
-	  WRITE_LONG NAME2 strref_name2
-	END
-      END
-      DEFAULT
-      // Nada!
-    END
-  END
+LAUNCH_ACTION_FUNCTION mh_run_task
+  INT_VAR
+  no_log	= 1
+  STR_VAR
+  task		= "fix_strrefs"
+END
 
 
