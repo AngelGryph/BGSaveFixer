@@ -76,9 +76,9 @@ BEGIN
 END
 
 
-COPY "%MOD_FOLDER%/old_save/baldur.gam" "%MOD_FOLDER%/new_save/baldur.gam"
-  PATCH_PRINT "Checking NPCs in baldur.gam..."
+PRINT "Checking NPCs in baldur.gam..."
 
+COPY "%MOD_FOLDER%/old_save/baldur.gam" "%MOD_FOLDER%/new_save/baldur.gam"
   GET_OFFSET_ARRAY chr_array 0x0020 4 0x0024 4 0 0 0x0160
   PHP_EACH chr_array AS chr_no => chr_offset
   BEGIN
@@ -96,8 +96,9 @@ COPY "%MOD_FOLDER%/old_save/baldur.gam" "%MOD_FOLDER%/new_save/baldur.gam"
   END
 
 
+PRINT "Checking saved areas and stores in baldur.sav..."
+
 COPY "%MOD_FOLDER%/old_save/baldur.sav" "%MOD_FOLDER%/new_save/baldur.sav"
-  PATCH_PRINT "Checking saved areas and stores in baldur.sav..."
   EDIT_SAV_FILE 9
   BEGIN
     READ_ASCII 0x0000 signature (4)

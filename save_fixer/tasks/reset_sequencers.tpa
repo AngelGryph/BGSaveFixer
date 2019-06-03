@@ -1,0 +1,58 @@
+// Reset Sequencers
+
+PRINT "Locating sequencer spells..."
+
+COPY_EXISTING_REGEXP - "^.+\.spl$" "inline"
+  GET_OFFSET_ARRAY ab_array SPL_V10_HEADERS
+  PHP_EACH ab_array AS int => ab_offset
+  BEGIN
+    GET_OFFSET_ARRAY2 fx_array ab_offset SPL_V10_HEAD_EFFECTS
+    PHP_EACH fx_array AS int => fx_offset
+    BEGIN
+      PATCH_IF SHORT_AT (fx_offset + 0x0000) == 257
+      BEGIN
+	PATCH_PRINT "Found %SOURCE_RES%..."
+
+	PATCH_IF FILE_EXISTS_IN_GAME "%SOURCE_RES%d.spl"
+	BEGIN
+	  TEXT_SPRINT $sequencers("%SOURCE_RES%d") "%SOURCE_RES%"
+	END
+
+	PATCH_IF FILE_EXISTS_IN_GAME "%SOURCE_RES%p.spl"
+	BEGIN
+	  TEXT_SPRINT $sequencers("%SOURCE_RES%p") "%SOURCE_RES%"
+	END
+      END
+    END
+  END
+
+
+PRINT "Checking NPCs in baldur.gam..."
+
+COPY "%MOD_FOLDER%/old_save/baldur.gam" "%MOD_FOLDER%/new_save/baldur.gam"
+  GET_OFFSET_ARRAY chr_array 0x0020 4 0x0024 4 0 0 0x0160
+  PHP_EACH chr_array AS chr_no => chr_offset
+  BEGIN
+    READ_LONG (chr_offset + 0x0004) cre_offset
+    READ_LONG (chr_offset + 0x0008) cre_size
+
+    READ_ASCII cre_offset old_cre ( cre_size )
+
+    INNER_PATCH_SAVE new_cre "%old_cre%"
+    BEGIN
+      LAUNCH_PATCH_FUNCTION DELETE_EFFECT
+        INT_VAR
+	match_opcode	= 256	// Spell Sequencer Active
+      END
+
+      PHP_EACH sequencers AS spell_res => resource
+      BEGIN
+        REMOVE_MEMORIZED_SPELL "%spell_res%"
+        REMOVE_KNOWN_SPELL "%spell_res%"
+      END
+    END
+
+    WRITE_EVALUATED_ASCII cre_offset "%new_cre%" ( cre_size )
+  END
+
+
