@@ -149,42 +149,37 @@ COPY "%MOD_FOLDER%/old_save/baldur.sav" "%MOD_FOLDER%/new_save/baldur.sav"
 	
 	INNER_PATCH_FILE "%SAV_FILE%"
 	BEGIN
-	  READ_LONG 0x0014 map_name
+	  READ_LONG 0x0014 strref_mapname
 
-          GET_OFFSET_ARRAY map_array 0x000c 4 0x0008 4 0 0 0x00b8
-	  PHP_EACH map_array AS map_no => map_offset
-	  BEGIN
-	    GET_OFFSET_ARRAY2 area_array map_offset 0x0024 4 0x0020 4 0 0 0x00f0
-	    PHP_EACH area_array AS area_no => area_offset
-	    BEGIN
-	      READ_ASCII area_offset area_resref
-
-	      READ_LONG (area_offset + 0x0040) strref_caption
-	      READ_LONG (area_offset + 0x0044) strref_tooltip
-
-	      TEXT_SPRINT $captions("map%map_no%_%area_resref%") "%strref_caption%"
-	      TEXT_SPRINT $tooltips("map%map_no%_%area_resref%") "%strref_tooltip%"
-	    END
-	  END
-	END
-
-
-        WRITE_LONG 0x0014 map_name
-
-        GET_OFFSET_ARRAY map_array 0x000c 4 0x0008 4 0 0 0x00b8
-        PHP_EACH map_array AS map_no => map_offset
-	BEGIN
-	  GET_OFFSET_ARRAY2 area_array map_offset 0x0024 4 0x0020 4 0 0 0x00f0
+          GET_OFFSET_ARRAY area_array WMP_AREAS
 	  PHP_EACH area_array AS area_no => area_offset
 	  BEGIN
 	    READ_ASCII area_offset area_resref
 
-	    PATCH_IF VARIABLE_IS_SET $captions("map%map_no%_%area_resref%")
-	         AND VARIABLE_IS_SET $tooltips("map%map_no%_%area_resref%")
-	    BEGIN
-	      WRITE_LONG (area_offset + 0x0040) $captions("map%map_no%_%area_resref%")
-	      WRITE_LONG (area_offset + 0x0040) $tooltips("map%map_no%_%area_resref%")
-	    END
+	    READ_LONG (area_offset + 0x0040) strref_caption
+	    READ_LONG (area_offset + 0x0044) strref_tooltip
+
+	    SET $captions("%area_resref%") = strref_caption
+	    SET $tooltips("%area_resref%") = strref_tooltip
+	  END
+	END
+
+
+	WRITE_LONG 0x0014 strref_mapname
+
+	GET_OFFSET_ARRAY area_array WMP_AREAS
+	PHP_EACH area_array AS area_no => area_offset
+	BEGIN
+	  READ_ASCII area_offset area_resref
+
+	  PATCH_IF VARIABLE_IS_SET $captions("%area_resref%")
+	  BEGIN
+	    WRITE_LONG (area_offset + 0x0040) $captions("%area_resref%")
+	  END
+
+	  PATCH_IF VARIABLE_IS_SET $tooltips("%area_resref%")
+	  BEGIN
+	    WRITE_LONG (area_offset + 0x0044) $tooltips("%area_resref%")
 	  END
 	END
       END
